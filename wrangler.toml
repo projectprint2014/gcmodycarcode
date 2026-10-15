@@ -10,7 +10,7 @@ run_worker_first = ["/api/*"]
 [[d1_databases]]
 binding = "DB"
 database_name = "warranty-db"
-database_id = "REPLACE_WITH_DATABASE_ID"
+database_id = "1a93618d-c8aa-400a-a1b0-feb190868eeb"
 migrations_dir = "migrations"
 
 [vars]
