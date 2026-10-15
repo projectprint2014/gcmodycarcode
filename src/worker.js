@@ -90,6 +90,12 @@ function sameOrigin(request) {
 async function api(request, env) {
   const url = new URL(request.url);
   const path = url.pathname;
+  if (path === "/api/debug-config" && request.method === "GET") {
+  return json({
+    setupTokenConfigured: Boolean(env.SETUP_TOKEN),
+    databaseConfigured: Boolean(env.DB)
+  });
+}
   if (!sameOrigin(request) && request.method !== "GET") return fail("طلب غير مسموح.", 403);
 
   if (path === "/api/status" && request.method === "GET") {
