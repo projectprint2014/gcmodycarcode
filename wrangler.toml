@@ -1,0 +1,17 @@
+name = "warranty-activation"
+main = "src/worker.js"
+compatibility_date = "2026-10-15"
+
+[assets]
+directory = "./public"
+binding = "ASSETS"
+run_worker_first = ["/api/*"]
+
+[[d1_databases]]
+binding = "DB"
+database_name = "warranty-db"
+database_id = "REPLACE_WITH_DATABASE_ID"
+migrations_dir = "migrations"
+
+[vars]
+# Do not put secrets in this file. Set SETUP_TOKEN using `wrangler secret put SETUP_TOKEN`.

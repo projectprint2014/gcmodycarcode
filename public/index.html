@@ -1,0 +1,281 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="theme-color" content="#0f766e">
+  <title>تفعيل الضمان</title>
+  <style>
+    :root{font-family:Tahoma,Arial,sans-serif;color:#172033;background:#f4f7fb}
+    *{box-sizing:border-box}body{margin:0}button,input,select{font:inherit}
+    header{background:#0f766e;color:#fff;padding:22px max(18px,calc((100% - 1050px)/2));display:flex;align-items:center;justify-content:space-between;gap:12px}
+    header h1{font-size:22px;margin:0}header small{opacity:.85}
+    main{max-width:1050px;margin:28px auto;padding:0 16px}.tabs{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:18px}
+    button{border:0;border-radius:10px;padding:11px 16px;cursor:pointer;background:#0f766e;color:#fff;font-weight:700}
+    button.secondary{background:#e5eaf0;color:#263445}button.danger{background:#b42318}button:disabled{opacity:.55;cursor:not-allowed}
+    .panel{background:#fff;border:1px solid #e0e6ee;border-radius:16px;padding:22px;box-shadow:0 5px 20px #12213a0a;margin-bottom:16px}
+    h2{font-size:20px;margin:0 0 16px}.muted{color:#68758a;font-size:14px}.field{display:flex;flex-direction:column;gap:7px;margin:12px 0}
+    input,select{width:100%;border:1px solid #cbd5e1;border-radius:9px;padding:12px;background:white;min-width:0}
+    .row{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}.hidden{display:none!important}
+    .message{padding:12px;border-radius:10px;margin:12px 0;white-space:pre-wrap}.ok{background:#dcfce7;color:#166534}.err{background:#fee2e2;color:#991b1b}.info{background:#e0f2fe;color:#075985}
+    .stats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}.stat{background:#f8fafc;border:1px solid #e2e8f0;border-radius:12px;padding:16px}.stat b{font-size:25px;display:block;margin-top:6px}
+    table{border-collapse:collapse;width:100%;font-size:14px}th,td{text-align:right;padding:11px 9px;border-bottom:1px solid #e5eaf0;overflow-wrap:anywhere}th{background:#f8fafc}
+    .tablewrap{overflow:auto}.sectionhead{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}
+    .tag{font-size:12px;border-radius:999px;background:#e2e8f0;padding:4px 8px}.small{font-size:12px}.foot{color:#6b7280;text-align:center;font-size:12px;margin:24px}
+    @media(max-width:650px){header{align-items:flex-start;flex-direction:column}.row,.stats{grid-template-columns:1fr}.panel{padding:16px}main{margin-top:18px}}
+  </style>
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+</head>
+<body>
+<header>
+  <div><h1>نظام تفعيل الضمان</h1><small>خدمة التحقق من أكواد الضمان</small></div>
+  <button id="adminToggle" class="secondary" type="button">دخول الإدارة</button>
+</header>
+<main>
+  <section id="customerPanel" class="panel">
+    <h2>تفعيل الضمان</h2>
+    <p class="muted">اكتب كود الضمان الموجود مع المنتج. يمكن تفعيل كل كود مرة واحدة فقط.</p>
+    <form id="activateForm">
+      <label class="field">كود الضمان
+        <input id="warrantyCode" autocomplete="off" minlength="8" maxlength="128" required placeholder="أدخل كود الضمان">
+      </label>
+      <button type="submit" id="activateBtn">تفعيل الضمان</button>
+    </form>
+    <div id="activateMessage" aria-live="polite"></div>
+  </section>
+
+  <section id="setupPanel" class="panel hidden">
+    <h2>إعداد المدير الأول</h2>
+    <p class="muted">تظهر هذه الصفحة قبل إنشاء أول حساب. أدخل رمز SETUP_TOKEN الذي ضبطته في Cloudflare. لا تشارك الرمز مع أي شخص.</p>
+    <form id="setupForm">
+      <div class="row">
+        <label class="field">رمز التهيئة<input id="setupToken" type="password" required autocomplete="off"></label>
+        <label class="field">اسم المستخدم<input id="setupUsername" required minlength="3" maxlength="40" pattern="[A-Za-z0-9._-]+" autocomplete="username"></label>
+      </div>
+      <div class="row">
+        <label class="field">الاسم الظاهر<input id="setupDisplay" required minlength="2" maxlength="80"></label>
+        <label class="field">كلمة المرور (14 حرفًا على الأقل)<input id="setupPassword" type="password" required minlength="14" autocomplete="new-password"></label>
+      </div>
+      <button type="submit">إنشاء حساب المالك</button>
+    </form><div id="setupMessage" aria-live="polite"></div>
+  </section>
+
+  <section id="loginPanel" class="panel hidden">
+    <h2>تسجيل دخول الإدارة</h2>
+    <form id="loginForm">
+      <div class="row">
+        <label class="field">اسم المستخدم<input id="loginUsername" required autocomplete="username"></label>
+        <label class="field">كلمة المرور<input id="loginPassword" type="password" required autocomplete="current-password"></label>
+      </div>
+      <button type="submit">تسجيل الدخول</button>
+    </form><div id="loginMessage" aria-live="polite"></div>
+  </section>
+
+  <section id="dashboard" class="hidden">
+    <div class="panel">
+      <div class="sectionhead"><div><h2>لوحة التحكم</h2><p id="whoami" class="muted"></p></div><button id="logoutBtn" class="secondary">تسجيل الخروج</button></div>
+      <div class="stats">
+        <div class="stat">إجمالي الأكواد<b id="totalCount">—</b></div>
+        <div class="stat">غير مفعّلة<b id="unusedCount">—</b></div>
+        <div class="stat">مفعّلة<b id="activatedCount">—</b></div>
+      </div>
+    </div>
+
+    <section id="importPanel" class="panel hidden">
+      <h2>استيراد أكواد من Excel</h2>
+      <p class="muted">اختر ملف XLSX أو XLS. استخدم عمودًا بعنوان code أو كود الضمان، أو ضع الأكواد في العمود الأول. يفضل أن يكون كل كود 8 أحرف أو أكثر.</p>
+      <form id="importForm">
+        <label class="field">ملف Excel<input id="excelFile" type="file" accept=".xlsx,.xls,.csv" required></label>
+        <button type="submit" id="importBtn">استيراد الأكواد</button>
+      </form><div id="importMessage" aria-live="polite"></div>
+    </section>
+
+    <section id="usersPanel" class="panel hidden">
+      <h2>إضافة حساب إدارة</h2>
+      <p class="muted">المالك فقط يستطيع إضافة الحسابات. لا تنشئ حسابًا مشتركًا بين أكثر من شخص.</p>
+      <form id="userForm">
+        <div class="row">
+          <label class="field">اسم المستخدم<input id="newUsername" required minlength="3" maxlength="40" pattern="[A-Za-z0-9._-]+"></label>
+          <label class="field">الاسم الظاهر<input id="newDisplay" required minlength="2" maxlength="80"></label>
+        </div>
+        <div class="row">
+          <label class="field">كلمة مرور مؤقتة (14 حرفًا على الأقل)<input id="newPassword" type="password" required minlength="14" autocomplete="new-password"></label>
+          <label class="field">الصلاحية<select id="newRole"><option value="admin">مدير — استيراد وعرض</option><option value="viewer">مشاهد — عرض فقط</option></select></label>
+        </div>
+        <button type="submit">إضافة المستخدم</button>
+      </form><div id="userMessage" aria-live="polite"></div>
+      <div id="usersList" class="tablewrap"></div>
+    </section>
+
+    <section class="panel">
+      <div class="sectionhead"><h2>سجل التفعيلات</h2><button id="refreshBtn" class="secondary">تحديث</button></div>
+      <div class="row">
+        <label class="field">حالة الأكواد<select id="statusFilter"><option value="">الكل</option><option value="activated">مفعّلة</option><option value="unused">غير مفعّلة</option></select></label>
+        <label class="field">مرجع الكود (اختياري)<input id="codeSearch" placeholder="أول 12 حرفًا من بصمة الكود"></label>
+      </div>
+      <div class="sectionhead"><span class="muted">يعرض النظام مرجعًا مختصرًا للكود، وليس الكود الكامل.</span><button id="exportBtn" class="secondary">تصدير CSV</button></div>
+      <div id="records" class="tablewrap"></div>
+    </section>
+
+    <section class="panel">
+      <h2>تغيير كلمة المرور</h2>
+      <form id="passwordForm">
+        <div class="row">
+          <label class="field">كلمة المرور الحالية<input id="currentPassword" type="password" required autocomplete="current-password"></label>
+          <label class="field">كلمة المرور الجديدة<input id="newPasswordChange" type="password" required minlength="14" autocomplete="new-password"></label>
+        </div>
+        <button type="submit">تغيير كلمة المرور</button>
+      </form><div id="passwordMessage" aria-live="polite"></div>
+    </section>
+  </section>
+  <p class="foot">احفظ ملف Excel الأصلي في مكان آمن، ولا تضع أكواد الضمان أو كلمات المرور في مستودع GitHub.</p>
+</main>
+<script>
+const $ = id => document.getElementById(id);
+let currentUser = null, latestRows = [];
+function showMessage(target, text, kind="info") {
+  const el = $(target); el.className = "message " + kind; el.textContent = text;
+}
+function clearMessage(target) { const el=$(target); el.className=""; el.textContent=""; }
+async function api(path, options={}) {
+  const res = await fetch(path, {credentials:"same-origin", ...options, headers:{"content-type":"application/json", ...(options.headers||{})}});
+  let data={}; try { data=await res.json(); } catch {}
+  if (!res.ok) throw new Error(data.error || "تعذر إكمال الطلب.");
+  return data;
+}
+function payload(form) { return Object.fromEntries(new FormData(form).entries()); }
+function showLoggedOut(initialized=true) {
+  $("dashboard").classList.add("hidden"); $("loginPanel").classList.add("hidden");
+  $("setupPanel").classList.toggle("hidden", initialized);
+  $("adminToggle").classList.toggle("hidden", !initialized);
+  $("customerPanel").classList.remove("hidden");
+  $("adminToggle").textContent = "دخول الإدارة";
+}
+function roleLabel(role) { return ({owner:"مالك النظام",admin:"مدير",viewer:"مشاهد فقط"})[role] || role; }
+async function boot() {
+  try {
+    const status = await api("/api/status", {method:"GET", headers:{}});
+    if (!status.initialized) { showLoggedOut(false); return; }
+    try {
+      const me = await api("/api/me", {method:"GET", headers:{}});
+      currentUser = me.user; await showDashboard();
+    } catch { showLoggedOut(true); }
+  } catch(e) { showMessage("activateMessage","تعذر الاتصال بالخادم. تأكد من إعداد Cloudflare D1 ثم أعد المحاولة.","err"); }
+}
+$("adminToggle").addEventListener("click", () => {
+  $("loginPanel").classList.toggle("hidden");
+  $("loginPanel").scrollIntoView({behavior:"smooth",block:"center"});
+});
+$("activateForm").addEventListener("submit", async e => {
+  e.preventDefault(); $("activateBtn").disabled=true; clearMessage("activateMessage");
+  try {
+    const data=await api("/api/activate",{method:"POST",body:JSON.stringify({code:$("warrantyCode").value})});
+    showMessage("activateMessage",data.message,"ok"); $("warrantyCode").value="";
+  } catch(err) { showMessage("activateMessage",err.message,"err"); }
+  finally { $("activateBtn").disabled=false; }
+});
+$("setupForm").addEventListener("submit", async e => {
+  e.preventDefault();
+  try {
+    await api("/api/setup",{method:"POST",body:JSON.stringify({
+      setupToken:$("setupToken").value,username:$("setupUsername").value,
+      displayName:$("setupDisplay").value,password:$("setupPassword").value
+    })});
+    showMessage("setupMessage","تم إنشاء حساب المالك. سجّل الدخول الآن.","ok");
+    $("setupForm").reset(); $("setupPanel").classList.add("hidden"); $("loginPanel").classList.remove("hidden"); $("adminToggle").classList.remove("hidden");
+  } catch(err) { showMessage("setupMessage",err.message,"err"); }
+});
+$("loginForm").addEventListener("submit", async e => {
+  e.preventDefault();
+  try {
+    const data=await api("/api/login",{method:"POST",body:JSON.stringify({username:$("loginUsername").value,password:$("loginPassword").value})});
+    currentUser=data.user; $("loginForm").reset(); $("loginPanel").classList.add("hidden"); $("customerPanel").classList.add("hidden"); await showDashboard();
+  } catch(err) { showMessage("loginMessage",err.message,"err"); }
+});
+async function showDashboard() {
+  $("dashboard").classList.remove("hidden"); $("customerPanel").classList.remove("hidden");
+  $("adminToggle").classList.add("hidden");
+  $("whoami").textContent = `${currentUser.displayName} — ${roleLabel(currentUser.role)}`;
+  $("importPanel").classList.toggle("hidden", !["owner","admin"].includes(currentUser.role));
+  $("usersPanel").classList.toggle("hidden", currentUser.role !== "owner");
+  await refreshDashboard();
+}
+$("logoutBtn").addEventListener("click", async () => {
+  try { await api("/api/logout",{method:"POST",body:"{}"}); } catch {}
+  currentUser=null; $("dashboard").classList.add("hidden"); $("customerPanel").classList.remove("hidden"); $("adminToggle").classList.remove("hidden"); showLoggedOut(true);
+});
+async function refreshDashboard() {
+  try {
+    const d=await api("/api/dashboard",{method:"GET",headers:{}});
+    $("totalCount").textContent=d.total; $("unusedCount").textContent=d.unused; $("activatedCount").textContent=d.activated;
+    await loadRecords();
+    if(currentUser.role==="owner") await loadUsers();
+  } catch(e) { showMessage("importMessage",e.message,"err"); }
+}
+async function loadRecords() {
+  const status=$("statusFilter").value, q=$("codeSearch").value.trim();
+  const params=new URLSearchParams({limit:"500"}); if(status)params.set("status",status); if(q)params.set("q",q);
+  const d=await api("/api/codes?"+params.toString(),{method:"GET",headers:{}}); latestRows=d.rows;
+  const rows=[["مرجع الكود","الحالة","تاريخ الإضافة","تاريخ التفعيل"],...d.rows.map(r=>[r.code_reference,r.status==="activated"?"تم التفعيل":"لم يُفعّل",r.imported_at,r.activated_at||"—"])];
+  $("records").innerHTML = tableHtml(rows);
+}
+function tableHtml(rows) {
+  return "<table><thead><tr>"+rows[0].map(x=>"<th>"+escapeHtml(x)+"</th>").join("")+"</tr></thead><tbody>"+
+    rows.slice(1).map(r=>"<tr>"+r.map(x=>"<td>"+escapeHtml(String(x??""))+"</td>").join("")+"</tr>").join("")+"</tbody></table>";
+}
+function escapeHtml(s) { return s.replace(/[&<>"']/g, c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c])); }
+$("refreshBtn").addEventListener("click",()=>refreshDashboard());
+$("statusFilter").addEventListener("change",()=>loadRecords().catch(e=>showMessage("importMessage",e.message,"err")));
+$("codeSearch").addEventListener("input",()=>{ clearTimeout(window._searchTimer); window._searchTimer=setTimeout(()=>loadRecords().catch(()=>{}),350); });
+$("importForm").addEventListener("submit", async e => {
+  e.preventDefault(); const file=$("excelFile").files[0]; if(!file)return;
+  if(!window.XLSX){showMessage("importMessage","تعذر تحميل قارئ Excel. تحقق من اتصال الإنترنت أو أعد المحاولة.","err");return;}
+  $("importBtn").disabled=true; clearMessage("importMessage");
+  try {
+    const bytes=await file.arrayBuffer();
+    const workbook=XLSX.read(bytes,{type:"array",raw:true});
+    const sheet=workbook.Sheets[workbook.SheetNames[0]];
+    const matrix=XLSX.utils.sheet_to_json(sheet,{header:1,raw:false,defval:""});
+    if(!matrix.length) throw new Error("الملف فارغ.");
+    const header=matrix[0].map(v=>String(v).trim().toLowerCase());
+    let idx=header.findIndex(v=>["code","warranty code","كود الضمان","الكود","كود"].includes(v));
+    let start=idx>=0?1:0; if(idx<0)idx=0;
+    const codes=matrix.slice(start).map(row=>row[idx]).filter(v=>String(v??"").trim()!=="");
+    if(!codes.length) throw new Error("لم يتم العثور على أكواد في العمود المحدد.");
+    if(codes.length>20000) throw new Error("الملف يحتوي على أكثر من 20,000 كود. قسّمه إلى ملفات أصغر.");
+    const result=await api("/api/import",{method:"POST",body:JSON.stringify({codes})});
+    showMessage("importMessage",`اكتمل الاستيراد.\nعدد الصفوف المقروءة: ${result.received}\nالأكواد الفريدة في الملف: ${result.unique}\nأكواد جديدة أضيفت: ${result.inserted}\nتم تجاوزها (مكررة أو موجودة سابقًا): ${result.skipped}`,"ok");
+    $("importForm").reset(); await refreshDashboard();
+  } catch(err) { showMessage("importMessage",err.message,"err"); }
+  finally { $("importBtn").disabled=false; }
+});
+$("userForm").addEventListener("submit", async e => {
+  e.preventDefault();
+  try {
+    await api("/api/users",{method:"POST",body:JSON.stringify({username:$("newUsername").value,displayName:$("newDisplay").value,password:$("newPassword").value,role:$("newRole").value})});
+    showMessage("userMessage","تم إنشاء حساب المستخدم.","ok"); $("userForm").reset(); await loadUsers();
+  } catch(err) { showMessage("userMessage",err.message,"err"); }
+});
+async function loadUsers() {
+  const d=await api("/api/users",{method:"GET",headers:{}});
+  const rows=[["اسم المستخدم","الاسم الظاهر","الصلاحية","الحالة","تاريخ الإنشاء"],...d.rows.map(u=>[u.username,u.display_name,roleLabel(u.role),u.active?"نشط":"موقوف",u.created_at])];
+  $("usersList").innerHTML=tableHtml(rows);
+}
+$("exportBtn").addEventListener("click",()=>{
+  const rows=[["code_reference","status","imported_at","activated_at"],...latestRows.map(r=>[r.code_reference,r.status,r.imported_at,r.activated_at||""])];
+  const csv=rows.map(row=>row.map(v=>'"'+String(v??"").replaceAll('"','""')+'"').join(",")).join("\r\n");
+  const blob=new Blob(["\ufeff"+csv],{type:"text/csv;charset=utf-8"}), url=URL.createObjectURL(blob);
+  const a=document.createElement("a");a.href=url;a.download="warranty-records.csv";a.click();URL.revokeObjectURL(url);
+});
+$("passwordForm").addEventListener("submit", async e=>{
+  e.preventDefault();
+  try {
+    await api("/api/password",{method:"POST",body:JSON.stringify({currentPassword:$("currentPassword").value,newPassword:$("newPasswordChange").value})});
+    showMessage("passwordMessage","تم تغيير كلمة المرور. سجّل الدخول مجددًا.","ok"); $("passwordForm").reset();
+    currentUser=null; setTimeout(()=>location.reload(),1000);
+  } catch(err) { showMessage("passwordMessage",err.message,"err"); }
+});
+boot();
+</script>
+</body>
+</html>
