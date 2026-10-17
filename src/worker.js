@@ -250,24 +250,41 @@ async function api(request, env) {
   if (path === "/api/activations/delete" && request.method === "POST") {
     const auth = await requireUser(request, env, ["owner", "admin"]);
     if (auth.error) return auth.error;
+
     let b;
-    try { b = await bodyJson(request, 1_000_000); } catch { return fail("تعذر قراءة طلب الحذف."); }
+    try { b = await bodyJson(request, 1_000_000); }
+    catch { return fail("تعذر قراءة طلب الحذف."); }
+
     if (b.all === true) {
-      const result = await env.DB.prepare("DELETE FROM activations").run();
-      // Do not change warranty_codes.status: previously activated codes remain unusable.
-      return json({ ok: true, deleted: result.meta?.changes || 0 });
+      const count = await env.DB.prepare("SELECT COUNT(*) AS n FROM activations").first();
+      // Remove activation details, but keep the original warranty codes in stock and reusable.
+      await env.DB.batch([
+        env.DB.prepare("UPDATE warranty_codes SET status='unused' WHERE status='activated'"),
+        env.DB.prepare("DELETE FROM activations")
+      ]);
+      await audit(env, auth.user.id, "delete_all_activations", `count=${Number(count?.n || 0)}`);
+      return json({ ok: true, deleted: Number(count?.n || 0) });
     }
+
     if (!Array.isArray(b.codes) || b.codes.length < 1 || b.codes.length > 500) {
       return fail("حدد سجلًا واحدًا على الأقل، وبحد أقصى 500 سجل في المرة الواحدة.");
     }
+
     const codes = [...new Set(b.codes.map(normalizeCode).filter(Boolean))];
     let deleted = 0;
     for (const code of codes) {
       const hash = await sha256(code);
-      const result = await env.DB.prepare("DELETE FROM activations WHERE code_hash = ?").bind(hash).run();
-      deleted += result.meta?.changes || 0;
+      // Each code is handled transactionally: reset status only when an activation exists,
+      // then remove its activation details. The warranty_codes row and original_code remain.
+      const result = await env.DB.batch([
+        env.DB.prepare(
+          "UPDATE warranty_codes SET status='unused' WHERE code_hash=? AND EXISTS (SELECT 1 FROM activations WHERE code_hash=?)"
+        ).bind(hash, hash),
+        env.DB.prepare("DELETE FROM activations WHERE code_hash=?").bind(hash)
+      ]);
+      deleted += result[1]?.meta?.changes || 0;
     }
-    // Intentionally leave warranty_codes.status='activated' so deleted activations cannot be reused.
+    await audit(env, auth.user.id, "delete_selected_activations", `count=${deleted}`);
     return json({ ok: true, deleted });
   }
 
