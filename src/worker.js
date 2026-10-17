@@ -256,36 +256,61 @@ async function api(request, env) {
     catch { return fail("تعذر قراءة طلب الحذف."); }
 
     if (b.all === true) {
-      const count = await env.DB.prepare("SELECT COUNT(*) AS n FROM activations").first();
-      // Remove activation details, but keep the original warranty codes in stock and reusable.
-      await env.DB.batch([
-        env.DB.prepare("UPDATE warranty_codes SET status='unused' WHERE status='activated'"),
-        env.DB.prepare("DELETE FROM activations")
+      const [codesCount, activationsCount] = await Promise.all([
+        env.DB.prepare("SELECT COUNT(*) AS n FROM warranty_codes").first(),
+        env.DB.prepare("SELECT COUNT(*) AS n FROM activations").first()
       ]);
-      await audit(env, auth.user.id, "delete_all_activations", `count=${Number(count?.n || 0)}`);
-      return json({ ok: true, deleted: Number(count?.n || 0) });
+      await env.DB.batch([
+        env.DB.prepare("DELETE FROM activations"),
+        env.DB.prepare("DELETE FROM warranty_codes")
+      ]);
+      await audit(
+        env,
+        auth.user.id,
+        "delete_all_warranty_codes",
+        `codes=${Number(codesCount?.n || 0)};activations=${Number(activationsCount?.n || 0)}`
+      );
+      return json({
+        ok: true,
+        deleted: Number(codesCount?.n || 0),
+        deletedActivations: Number(activationsCount?.n || 0)
+      });
     }
 
     if (!Array.isArray(b.codes) || b.codes.length < 1 || b.codes.length > 500) {
-      return fail("حدد سجلًا واحدًا على الأقل، وبحد أقصى 500 سجل في المرة الواحدة.");
+      return fail("حدد كودًا واحدًا على الأقل، وبحد أقصى 500 كود في المرة الواحدة.");
     }
 
     const codes = [...new Set(b.codes.map(normalizeCode).filter(Boolean))];
-    let deleted = 0;
+    let deletedCodes = 0;
+    let deletedActivations = 0;
+
     for (const code of codes) {
       const hash = await sha256(code);
-      // Each code is handled transactionally: reset status only when an activation exists,
-      // then remove its activation details. The warranty_codes row and original_code remain.
-      const result = await env.DB.batch([
-        env.DB.prepare(
-          "UPDATE warranty_codes SET status='unused' WHERE code_hash=? AND EXISTS (SELECT 1 FROM activations WHERE code_hash=?)"
-        ).bind(hash, hash),
-        env.DB.prepare("DELETE FROM activations WHERE code_hash=?").bind(hash)
+      const existing = await env.DB.prepare(
+        "SELECT code_hash FROM warranty_codes WHERE code_hash=?"
+      ).bind(hash).first();
+      if (!existing) continue;
+
+      const activationCount = await env.DB.prepare(
+        "SELECT COUNT(*) AS n FROM activations WHERE code_hash=?"
+      ).bind(hash).first();
+
+      await env.DB.batch([
+        env.DB.prepare("DELETE FROM activations WHERE code_hash=?").bind(hash),
+        env.DB.prepare("DELETE FROM warranty_codes WHERE code_hash=?").bind(hash)
       ]);
-      deleted += result[1]?.meta?.changes || 0;
+      deletedCodes += 1;
+      deletedActivations += Number(activationCount?.n || 0);
     }
-    await audit(env, auth.user.id, "delete_selected_activations", `count=${deleted}`);
-    return json({ ok: true, deleted });
+
+    await audit(
+      env,
+      auth.user.id,
+      "delete_selected_warranty_codes",
+      `codes=${deletedCodes};activations=${deletedActivations}`
+    );
+    return json({ ok: true, deleted: deletedCodes, deletedActivations });
   }
 
   if (path === "/api/codes" && request.method === "GET") {

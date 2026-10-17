@@ -128,9 +128,9 @@
       </div>
       <div class="sectionhead"><span class="muted">يعرض النظام كود الضمان الأصلي كما تم استيراده من Excel.</span><button id="exportBtn" class="secondary">تصدير CSV</button></div>
       <div class="row" id="deleteControls" style="margin:12px 0">
-        <button type="button" id="deleteSelectedBtn" class="secondary">حذف السجلات المحددة</button>
-        <button type="button" id="deleteAllBtn" class="secondary">حذف كل سجلات التفعيل</button>
-        <span class="muted">الحذف يمسح بيانات التفعيل ويعيد الكود إلى غير مفعّل؛ كود الضمان الأصلي يظل محفوظًا في المخزون.</span>
+        <button type="button" id="deleteSelectedBtn" class="secondary">حذف الأكواد المحددة نهائيًا</button>
+        <button type="button" id="deleteAllBtn" class="secondary">حذف جميع أكواد الضمان نهائيًا</button>
+        <span class="muted">الحذف نهائي ويزيل كود الضمان نفسه وسجل التفعيل وبيانات العميل المرتبطة به، سواء كان الكود مفعّلًا أو غير مفعّل.</span>
       </div>
       <div id="deleteMessage" aria-live="polite"></div>
       <div id="records" class="tablewrap"></div>
@@ -294,21 +294,42 @@ async function deleteActivations(payload, confirmation) {
   if (!confirm(confirmation)) return;
   clearMessage("deleteMessage");
   try {
-    const result=await api("/api/activations/delete",{method:"POST",body:JSON.stringify(payload)});
+    const result = await api("/api/activations/delete", {
+      method: "POST",
+      body: JSON.stringify(payload)
+    });
     $("statusFilter").value = "";
     $("codeSearch").value = "";
-    showMessage("deleteMessage",`تم حذف ${result.deleted} سجل تفعيل وإرجاع أكوادها إلى حالة غير مفعّلة. ستظل الأكواد ظاهرة في الجدول لأنها محفوظة في مخزون الضمان.`,"ok");
+    showMessage(
+      "deleteMessage",
+      `تم حذف ${result.deleted} كود ضمان نهائيًا، وحذف ${result.deletedActivations} سجل تفعيل مرتبط به.`,
+      "ok"
+    );
     await refreshDashboard();
-  } catch(err) { showMessage("deleteMessage",err.message,"err"); }
+  } catch (err) {
+    showMessage("deleteMessage", err.message, "err");
+  }
 }
-$("deleteSelectedBtn").addEventListener("click",()=>{
-  const codes=[...document.querySelectorAll(".activation-select:checked")].map(el=>el.value);
-  if(!codes.length){showMessage("deleteMessage","حدد سجل تفعيل واحدًا على الأقل أولًا.","err");return;}
-  deleteActivations({codes},`تأكيد حذف سجلات التفعيل المرتبطة بالعناصر المحددة وعددها ${codes.length}؟ الأكواد الأصلية ستظل محفوظة وسيعود الكود المفعّل إلى حالة غير مفعّلة.`);
+
+$("deleteSelectedBtn").addEventListener("click", () => {
+  const codes = [...document.querySelectorAll(".activation-select:checked")].map(el => el.value);
+  if (!codes.length) {
+    showMessage("deleteMessage", "حدد كودًا واحدًا على الأقل للحذف.", "err");
+    return;
+  }
+  deleteActivations(
+    { codes },
+    `تحذير: سيتم حذف ${codes.length} كود ضمان محدد نهائيًا من المخزون، مع سجلات التفعيل وبيانات العملاء المرتبطة بها. لا يمكن التراجع عن الحذف. هل تريد المتابعة؟`
+  );
 });
-$("deleteAllBtn").addEventListener("click",()=>deleteActivations({all:true},"تحذير: سيتم حذف جميع سجلات التفعيل وبيانات العملاء المرتبطة بها، وإرجاع الأكواد إلى حالة غير مفعّلة. ستظل الأكواد الأصلية محفوظة في المخزون وستظهر في الجدول. هل تريد المتابعة؟"));
+
+$("deleteAllBtn").addEventListener("click", () => {
+  deleteActivations(
+    { all: true },
+    "تحذير نهائي: سيتم حذف جميع أكواد الضمان من المخزون وجميع سجلات التفعيل وبيانات العملاء المرتبطة بها. لا يمكن التراجع عن الحذف. هل تريد المتابعة؟"
+  );
+});
 function escapeHtml(s) { return s.replace(/[&<>"']/g, c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c])); }
-function tableHtml(rows) { return "<table><thead><tr>" + rows[0].map(v => "<th>" + escapeHtml(String(v ?? "")) + "</th>").join("") + "</tr></thead><tbody>" + rows.slice(1).map(row => "<tr>" + row.map(v => "<td>" + escapeHtml(String(v ?? "")) + "</td>").join("") + "</tr>").join("") + "</tbody></table>"; }
 $("refreshBtn").addEventListener("click",()=>refreshDashboard());
 $("statusFilter").addEventListener("change",()=>loadRecords().catch(e=>showMessage("importMessage",e.message,"err")));
 $("codeSearch").addEventListener("input",()=>{ clearTimeout(window._searchTimer); window._searchTimer=setTimeout(()=>loadRecords().catch(()=>{}),350); });
