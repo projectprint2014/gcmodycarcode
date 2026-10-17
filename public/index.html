@@ -295,7 +295,6 @@ async function deleteActivations(payload, confirmation) {
   clearMessage("deleteMessage");
   try {
     const result=await api("/api/activations/delete",{method:"POST",body:JSON.stringify(payload)});
-    // Clear filters so codes reset to "unused" remain visible after deletion.
     $("statusFilter").value = "";
     $("codeSearch").value = "";
     showMessage("deleteMessage",`تم حذف ${result.deleted} سجل تفعيل وإرجاع أكوادها إلى حالة غير مفعّلة. ستظل الأكواد ظاهرة في الجدول لأنها محفوظة في مخزون الضمان.`,"ok");
@@ -309,6 +308,7 @@ $("deleteSelectedBtn").addEventListener("click",()=>{
 });
 $("deleteAllBtn").addEventListener("click",()=>deleteActivations({all:true},"تحذير: سيتم حذف جميع سجلات التفعيل وبيانات العملاء المرتبطة بها، وإرجاع الأكواد إلى حالة غير مفعّلة. ستظل الأكواد الأصلية محفوظة في المخزون وستظهر في الجدول. هل تريد المتابعة؟"));
 function escapeHtml(s) { return s.replace(/[&<>"']/g, c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c])); }
+function tableHtml(rows) { return "<table><thead><tr>" + rows[0].map(v => "<th>" + escapeHtml(String(v ?? "")) + "</th>").join("") + "</tr></thead><tbody>" + rows.slice(1).map(row => "<tr>" + row.map(v => "<td>" + escapeHtml(String(v ?? "")) + "</td>").join("") + "</tr>").join("") + "</tbody></table>"; }
 $("refreshBtn").addEventListener("click",()=>refreshDashboard());
 $("statusFilter").addEventListener("change",()=>loadRecords().catch(e=>showMessage("importMessage",e.message,"err")));
 $("codeSearch").addEventListener("input",()=>{ clearTimeout(window._searchTimer); window._searchTimer=setTimeout(()=>loadRecords().catch(()=>{}),350); });
