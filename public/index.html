@@ -129,7 +129,7 @@
       <div class="row" id="deleteControls" style="margin:12px 0">
         <button type="button" id="deleteSelectedBtn" class="secondary">حذف السجلات المحددة</button>
         <button type="button" id="deleteAllBtn" class="secondary">حذف كل سجلات التفعيل</button>
-        <span class="muted">الحذف يمسح سجل التفعيل فقط؛ كود الضمان يظل مفعّلًا ولا يمكن استخدامه مرة أخرى.</span>
+        <span class="muted">عند تحديد كود مفعّل يُحذف سجل تفعيله ويعود الكود لحالة غير مفعّلة. وعند تحديد كود غير مفعّل يُحذف الكود نفسه من قاعدة البيانات.</span>
       </div>
       <div id="deleteMessage" aria-live="polite"></div>
       <div id="records" class="tablewrap"></div>
@@ -254,7 +254,7 @@ async function loadRecords() {
   const canDelete=["owner","admin"].includes(currentUser?.role);
   $("deleteControls").classList.toggle("hidden", !canDelete);
   const headers=["اختيار","كود الضمان","الحالة","اسم العميل","الموبايل","المنتج","مسلسل الجهاز","تاريخ الشراء","تاريخ الإضافة","تاريخ التفعيل"];
-  const body=d.rows.map(r=>`<tr><td>${r.status==="activated" && canDelete ? `<input type="checkbox" class="activation-select" value="${escapeHtml(String(r.code_reference??""))}" aria-label="تحديد سجل ${escapeHtml(String(r.code_reference??""))}">` : "—"}</td><td>${escapeHtml(String(r.code_reference??""))}</td><td>${r.status==="activated"?'<span style="color:#15803d;font-weight:700">تم التفعيل</span>':"لم يُفعّل"}</td><td>${escapeHtml(String(r.customer_name??""))}</td><td>${escapeHtml(String(r.phone??""))}</td><td>${escapeHtml(String(r.product_name??""))}</td><td>${escapeHtml(String(r.serial_number??""))}</td><td>${escapeHtml(dateOnly(r.purchase_date))}</td><td>${escapeHtml(dateOnly(r.imported_at))}</td><td>${escapeHtml(dateOnly(r.activated_at))}</td></tr>`).join("");
+  const body=d.rows.map(r=>`<tr><td>${canDelete ? `<input type="checkbox" class="activation-select" value="${escapeHtml(String(r.code_reference??""))}" data-status="${escapeHtml(String(r.status??"unused"))}" aria-label="تحديد الكود ${escapeHtml(String(r.code_reference??""))}">` : "—"}</td><td>${escapeHtml(String(r.code_reference??""))}</td><td>${r.status==="activated"?'<span style="color:#15803d;font-weight:700">تم التفعيل</span>':"لم يُفعّل"}</td><td>${escapeHtml(String(r.customer_name??""))}</td><td>${escapeHtml(String(r.phone??""))}</td><td>${escapeHtml(String(r.product_name??""))}</td><td>${escapeHtml(String(r.serial_number??""))}</td><td>${escapeHtml(dateOnly(r.purchase_date))}</td><td>${escapeHtml(dateOnly(r.imported_at))}</td><td>${escapeHtml(dateOnly(r.activated_at))}</td></tr>`).join("");
   $("records").innerHTML = "<table><thead><tr>"+headers.map(x=>"<th>"+escapeHtml(x)+"</th>").join("")+"</tr></thead><tbody>"+body+"</tbody></table>";
 }
 async function deleteActivations(payload, confirmation) {
@@ -262,16 +262,25 @@ async function deleteActivations(payload, confirmation) {
   clearMessage("deleteMessage");
   try {
     const result=await api("/api/activations/delete",{method:"POST",body:JSON.stringify(payload)});
-    showMessage("deleteMessage",`تم حذف ${result.deleted} سجل تفعيل. أكواد الضمان ما زالت مفعّلة وغير قابلة لإعادة الاستخدام.`,"ok");
+    if (payload.all) {
+      showMessage("deleteMessage",`تم حذف ${result.deletedActivations ?? result.deleted ?? 0} سجل تفعيل. الأكواد الأصلية ما زالت محفوظة، والأكواد التي كانت مفعّلة عادت إلى حالة غير مفعّلة.`,"ok");
+    } else {
+      showMessage("deleteMessage",`تمت العملية: حذف ${result.deletedActivations ?? 0} سجل تفعيل، وحذف ${result.deletedCodes ?? 0} كود غير مفعّل من قاعدة البيانات.`,"ok");
+    }
     await refreshDashboard();
   } catch(err) { showMessage("deleteMessage",err.message,"err"); }
 }
 $("deleteSelectedBtn").addEventListener("click",()=>{
-  const codes=[...document.querySelectorAll(".activation-select:checked")].map(el=>el.value);
-  if(!codes.length){showMessage("deleteMessage","حدد سجل تفعيل واحدًا على الأقل أولًا.","err");return;}
-  deleteActivations({codes},`تأكيد حذف ${codes.length} سجل تفعيل؟ أكواد الضمان ستظل مفعّلة ولن يمكن استخدامها مرة أخرى.`);
+  const selected=[...document.querySelectorAll(".activation-select:checked")];
+  const codes=selected.map(el=>el.value);
+  if(!codes.length){showMessage("deleteMessage","حدد كودًا واحدًا على الأقل أولًا.","err");return;}
+  const activated=selected.filter(el=>el.dataset.status==="activated").length;
+  const unused=selected.length-activated;
+  deleteActivations({codes},`تأكيد تنفيذ الحذف على ${selected.length} كود؟
+- ${activated} كود مفعّل: سيُحذف سجل التفعيل ويعود الكود لحالة غير مفعّلة.
+- ${unused} كود غير مفعّل: سيُحذف الكود نفسه نهائيًا من قاعدة البيانات.`);
 });
-$("deleteAllBtn").addEventListener("click",()=>deleteActivations({all:true},"تحذير: سيتم حذف جميع سجلات التفعيل وبيانات العملاء المرتبطة بها نهائيًا. أكواد الضمان وحسابات الإدارة ستظل موجودة، والأكواد المفعّلة لن تصبح قابلة للاستخدام مرة أخرى. هل تريد المتابعة؟"));
+$("deleteAllBtn").addEventListener("click",()=>deleteActivations({all:true},"تحذير: سيتم حذف جميع سجلات التفعيل وبيانات العملاء المرتبطة بها. الأكواد الأصلية ستظل محفوظة، والأكواد التي كانت مفعّلة ستعود إلى حالة غير مفعّلة. الأكواد غير المفعّلة لن تُحذف. هل تريد المتابعة؟"));
 function tableHtml(rows) {
   if (!rows || !rows.length) return "";
   return "<table><thead><tr>" + rows[0].map(x=>"<th>"+escapeHtml(String(x??""))+"</th>").join("") +
