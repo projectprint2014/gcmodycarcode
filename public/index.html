@@ -3,32 +3,35 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
-  <meta name="theme-color" content="#0f766e">
+  <meta name="theme-color" content="#000000">
   <title>تفعيل الضمان</title>
   <style>
-    :root{font-family:Tahoma,Arial,sans-serif;color:#172033;background:#f4f7fb}
-    *{box-sizing:border-box}body{margin:0}button,input,select{font:inherit}
-    header{background:#0f766e;color:#fff;padding:22px max(18px,calc((100% - 1050px)/2));display:flex;align-items:center;justify-content:space-between;gap:12px}
-    header h1{font-size:22px;margin:0}header small{opacity:.85}
+    :root{font-family:Tahoma,Arial,sans-serif;color:#f5f5f5;background:#000}
+    *{box-sizing:border-box}body{margin:0;background:#000;color:#f5f5f5}button,input,select{font:inherit}
+    header{background:#080808;color:#fff;padding:22px max(18px,calc((100% - 1050px)/2));display:flex;align-items:center;justify-content:space-between;gap:20px;border-bottom:2px solid #ff8a00}
+    header h1{font-size:22px;margin:0;color:#fff}header small{opacity:.8;color:#d6d6d6}
+    .brand{text-align:left;min-width:220px}.brand strong{display:block;color:#ff8a00;font-size:19px;line-height:1.5}.brand small{display:block;font-size:12px;line-height:1.7}
     main{max-width:1050px;margin:28px auto;padding:0 16px}.tabs{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:18px}
-    button{border:0;border-radius:10px;padding:11px 16px;cursor:pointer;background:#0f766e;color:#fff;font-weight:700}
-    button.secondary{background:#e5eaf0;color:#263445}button.danger{background:#b42318}button:disabled{opacity:.55;cursor:not-allowed}
-    .panel{background:#fff;border:1px solid #e0e6ee;border-radius:16px;padding:22px;box-shadow:0 5px 20px #12213a0a;margin-bottom:16px}
-    h2{font-size:20px;margin:0 0 16px}.muted{color:#68758a;font-size:14px}.field{display:flex;flex-direction:column;gap:7px;margin:12px 0}
-    input,select{width:100%;border:1px solid #cbd5e1;border-radius:9px;padding:12px;background:white;min-width:0}
+    button{border:1px solid #ff8a00;border-radius:10px;padding:11px 16px;cursor:pointer;background:#ff8a00;color:#111;font-weight:700}
+    button.secondary{background:#171717;color:#ffad42;border-color:#555}button.danger{background:#b42318;color:#fff;border-color:#b42318}button:disabled{opacity:.55;cursor:not-allowed}
+    .panel{background:#101010;border:1px solid #343434;border-radius:16px;padding:22px;box-shadow:0 5px 20px #000;margin-bottom:16px}
+    h2{font-size:20px;margin:0 0 16px;color:#ff9b24}.muted{color:#b6b6b6;font-size:14px}.field{display:flex;flex-direction:column;gap:7px;margin:12px 0}
+    input,select{width:100%;border:1px solid #555;border-radius:9px;padding:12px;background:#191919;color:#fff;min-width:0}
+    input::placeholder{color:#999}input:focus,select:focus{outline:2px solid #ff8a00;outline-offset:1px}
     .row{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}.hidden{display:none!important}
-    .message{padding:12px;border-radius:10px;margin:12px 0;white-space:pre-wrap}.ok{background:#dcfce7;color:#166534}.err{background:#fee2e2;color:#991b1b}.info{background:#e0f2fe;color:#075985}
-    .stats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}.stat{background:#f8fafc;border:1px solid #e2e8f0;border-radius:12px;padding:16px}.stat b{font-size:25px;display:block;margin-top:6px}
-    table{border-collapse:collapse;width:100%;font-size:14px}th,td{text-align:right;padding:11px 9px;border-bottom:1px solid #e5eaf0;overflow-wrap:anywhere}th{background:#f8fafc}
+    .message{padding:12px;border-radius:10px;margin:12px 0;white-space:pre-wrap}.ok{background:#102417;color:#9df0b3;border:1px solid #246638}.err{background:#301313;color:#ffb3b3;border:1px solid #7b2929}.info{background:#171f27;color:#b9e4ff;border:1px solid #29485c}
+    .stats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}.stat{background:#191919;border:1px solid #383838;border-radius:12px;padding:16px;color:#ddd}.stat b{font-size:25px;display:block;margin-top:6px;color:#ff9b24}
+    table{border-collapse:collapse;width:100%;font-size:14px;color:#eee}th,td{text-align:right;padding:11px 9px;border-bottom:1px solid #333;overflow-wrap:anywhere}th{background:#202020;color:#ffad42}
     .tablewrap{overflow:auto}.sectionhead{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}
-    .tag{font-size:12px;border-radius:999px;background:#e2e8f0;padding:4px 8px}.small{font-size:12px}.foot{color:#6b7280;text-align:center;font-size:12px;margin:24px}
-    @media(max-width:650px){header{align-items:flex-start;flex-direction:column}.row,.stats{grid-template-columns:1fr}.panel{padding:16px}main{margin-top:18px}}
+    .tag{font-size:12px;border-radius:999px;background:#292929;color:#ffad42;padding:4px 8px}.small{font-size:12px}.foot{color:#888;text-align:center;font-size:12px;margin:24px}
+    @media(max-width:650px){header{align-items:flex-start;flex-direction:column}.brand{text-align:right;min-width:0}.row,.stats{grid-template-columns:1fr}.panel{padding:16px}main{margin-top:18px}}
   </style>
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 </head>
 <body>
 <header>
   <div><h1>نظام تفعيل الضمان</h1><small>خدمة التحقق من أكواد الضمان</small></div>
+  <div class="brand"><strong>الشركة العالمية مودي كار</strong><small>لإكسسوارات السيارات · حل مشاكل عربيتك عندنا</small></div>
   <button id="adminToggle" class="secondary" type="button">دخول الإدارة</button>
 </header>
 <main>
@@ -36,10 +39,13 @@
     <h2>تفعيل الضمان</h2>
     <p class="muted">اكتب كود الضمان الموجود مع المنتج. يمكن تفعيل كل كود مرة واحدة فقط.</p>
     <form id="activateForm">
-      <label class="field">كود الضمان
-        <input id="warrantyCode" autocomplete="off" minlength="8" maxlength="128" required placeholder="أدخل كود الضمان">
-      </label>
-      <button type="submit" id="activateBtn">تفعيل الضمان</button>
+      <label class="field">كود الضمان *<input id="warrantyCode" autocomplete="off" minlength="8" maxlength="128" required placeholder="مثال: GC-0001000"></label>
+      <label class="field">اسم العميل بالكامل *<input id="customerName" autocomplete="name" maxlength="120" required placeholder="اكتب اسم العميل بالكامل"></label>
+      <label class="field">رقم الموبايل *<input id="customerPhone" type="tel" inputmode="numeric" autocomplete="tel" pattern="01[0-9]{9}" maxlength="11" minlength="11" required placeholder="01xxxxxxxxx"></label>
+      <label class="field">المنتج *<select id="productSelect" required><option value="">جارٍ تحميل المنتجات...</option></select></label>
+      <label class="field">رقم مسلسل الجهاز (اختياري)<input id="serialNumber" maxlength="120" placeholder="الرقم المسجل على الجهاز (إن وجد)"></label>
+      <label class="field">تاريخ الشراء<input id="purchaseDate" type="date"></label>
+      <button type="submit" id="activateBtn">تسجيل البيانات وتفعيل الضمان</button>
     </form>
     <div id="activateMessage" aria-live="polite"></div>
   </section>
@@ -90,6 +96,12 @@
       </form><div id="importMessage" aria-live="polite"></div>
     </section>
 
+    <section id="productsPanel" class="panel hidden">
+      <h2>إدارة المنتجات</h2><p class="muted">المنتجات الموقوفة لا تظهر للعميل، وتظل سجلات الضمان السابقة محفوظة.</p>
+      <form id="productForm"><label class="field">اسم المنتج الجديد<input id="newProductName" required minlength="2" maxlength="100" placeholder="اكتب اسم المنتج"></label><button type="submit" id="addProductBtn">إضافة المنتج</button></form>
+      <div id="productMessage" aria-live="polite"></div><div id="productsList" class="tablewrap"></div>
+    </section>
+
     <section id="usersPanel" class="panel hidden">
       <h2>إضافة حساب إدارة</h2>
       <p class="muted">المالك فقط يستطيع إضافة الحسابات. لا تنشئ حسابًا مشتركًا بين أكثر من شخص.</p>
@@ -111,9 +123,15 @@
       <div class="sectionhead"><h2>سجل التفعيلات</h2><button id="refreshBtn" class="secondary">تحديث</button></div>
       <div class="row">
         <label class="field">حالة الأكواد<select id="statusFilter"><option value="">الكل</option><option value="activated">مفعّلة</option><option value="unused">غير مفعّلة</option></select></label>
-        <label class="field">مرجع الكود (اختياري)<input id="codeSearch" placeholder="أول 12 حرفًا من بصمة الكود"></label>
+        <label class="field">مرجع الكود (اختياري)<input id="codeSearch" placeholder="اكتب كود الضمان للبحث"></label>
       </div>
-      <div class="sectionhead"><span class="muted">يعرض النظام مرجعًا مختصرًا للكود، وليس الكود الكامل.</span><button id="exportBtn" class="secondary">تصدير CSV</button></div>
+      <div class="sectionhead"><span class="muted">يعرض النظام كود الضمان الأصلي كما تم استيراده من Excel.</span><button id="exportBtn" class="secondary">تصدير CSV</button></div>
+      <div class="row" id="deleteControls" style="margin:12px 0">
+        <button type="button" id="deleteSelectedBtn" class="secondary">حذف السجلات المحددة</button>
+        <button type="button" id="deleteAllBtn" class="secondary">حذف كل سجلات التفعيل</button>
+        <span class="muted">الحذف يمسح سجل التفعيل فقط؛ كود الضمان يظل مفعّلًا ولا يمكن استخدامه مرة أخرى.</span>
+      </div>
+      <div id="deleteMessage" aria-live="polite"></div>
       <div id="records" class="tablewrap"></div>
     </section>
 
@@ -151,8 +169,18 @@ function showLoggedOut(initialized=true) {
   $("customerPanel").classList.remove("hidden");
   $("adminToggle").textContent = "دخول الإدارة";
 }
+function dateOnly(value) {
+  if (!value || value === "—") return value || "—";
+  const text = String(value).trim();
+  // Dates from the API are ISO-like strings; show only YYYY-MM-DD and keep unknown formats intact.
+  const match = text.match(/^(\\d{4}-\\d{2}-\\d{2})/);
+  if (match) return match[1];
+  const parsed = new Date(text);
+  return Number.isNaN(parsed.getTime()) ? text : parsed.toISOString().slice(0, 10);
+}
 function roleLabel(role) { return ({owner:"مالك النظام",admin:"مدير",viewer:"مشاهد فقط"})[role] || role; }
 async function boot() {
+  loadCustomerProducts().catch(()=>{});
   try {
     const status = await api("/api/status", {method:"GET", headers:{}});
     if (!status.initialized) { showLoggedOut(false); return; }
@@ -169,8 +197,12 @@ $("adminToggle").addEventListener("click", () => {
 $("activateForm").addEventListener("submit", async e => {
   e.preventDefault(); $("activateBtn").disabled=true; clearMessage("activateMessage");
   try {
-    const data=await api("/api/activate",{method:"POST",body:JSON.stringify({code:$("warrantyCode").value})});
-    showMessage("activateMessage",data.message,"ok"); $("warrantyCode").value="";
+    const data=await api("/api/activate",{method:"POST",body:JSON.stringify({
+      code:$("warrantyCode").value, customerName:$("customerName").value,
+      phone:$("customerPhone").value, productId:$("productSelect").value,
+      serialNumber:$("serialNumber").value, purchaseDate:$("purchaseDate").value
+    })});
+    showMessage("activateMessage",data.message,"ok"); $("activateForm").reset(); await loadCustomerProducts();
   } catch(err) { showMessage("activateMessage",err.message,"err"); }
   finally { $("activateBtn").disabled=false; }
 });
@@ -198,6 +230,9 @@ async function showDashboard() {
   $("whoami").textContent = `${currentUser.displayName} — ${roleLabel(currentUser.role)}`;
   $("importPanel").classList.toggle("hidden", !["owner","admin"].includes(currentUser.role));
   $("usersPanel").classList.toggle("hidden", currentUser.role !== "owner");
+  $("productsPanel").classList.toggle("hidden", !["owner","admin"].includes(currentUser.role));
+  await loadProducts();
+  await loadCustomerProducts();
   await refreshDashboard();
 }
 $("logoutBtn").addEventListener("click", async () => {
@@ -212,129 +247,31 @@ async function refreshDashboard() {
     if(currentUser.role==="owner") await loadUsers();
   } catch(e) { showMessage("importMessage",e.message,"err"); }
 }
-
 async function loadRecords() {
-  const status = $("statusFilter").value;
-  const q = $("codeSearch").value.trim();
-  const params = new URLSearchParams({ limit: "500" });
-
-  if (status) params.set("status", status);
-  if (q) params.set("q", q);
-
-  const d = await api("/api/codes?" + params.toString(), {
-    method: "GET",
-    headers: {}
-  });
-
-  latestRows = d.rows;
-
-  const records = $("records");
-  const selectedRows = d.rows.filter(
-    r => r.status === "activated" && r.activation_id
-  );
-
-  records.innerHTML = `
-    <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:12px">
-      <label>
-        <input type="checkbox" id="selectAllActivations">
-        تحديد كل سجلات التفعيل الظاهرة
-      </label>
-      <button type="button" id="deleteSelectedActivations">حذف المحدد</button>
-      <button type="button" id="deleteAllActivations">حذف جميع سجلات التفعيل</button>
-    </div>
-    <table>
-      <thead>
-        <tr>
-          <th>تحديد</th>
-          <th>مرجع الكود</th>
-          <th>الحالة</th>
-          <th>تاريخ الإضافة</th>
-          <th>تاريخ التفعيل</th>
-        </tr>
-      </thead>
-      <tbody>
-        ${d.rows.map(r => `
-          <tr>
-            <td>
-              ${r.status === "activated" && r.activation_id
-                ? `<input type="checkbox" class="activation-select" value="${escapeHtml(String(r.activation_id))}" aria-label="تحديد سجل التفعيل">`
-                : "—"}
-            </td>
-            <td>${escapeHtml(String(r.code_reference ?? ""))}</td>
-            <td>${r.status === "activated" ? "تم التفعيل" : "لم يُفعّل"}</td>
-            <td>${escapeHtml(String(r.imported_at ?? ""))}</td>
-            <td>${escapeHtml(String(r.activated_at ?? "—"))}</td>
-          </tr>
-        `).join("")}
-      </tbody>
-    </table>
-  `;
-
-  const selectAll = document.getElementById("selectAllActivations");
-
-  selectAll.addEventListener("change", () => {
-    records.querySelectorAll(".activation-select").forEach(cb => {
-      cb.checked = selectAll.checked;
-    });
-  });
-
-  document.getElementById("deleteSelectedActivations")
-    .addEventListener("click", async () => {
-      const ids = [...records.querySelectorAll(".activation-select:checked")]
-        .map(cb => cb.value);
-
-      if (!ids.length) {
-        alert("حدد سجل تفعيل واحدًا على الأقل.");
-        return;
-      }
-
-      if (!confirm(`هل تريد حذف ${ids.length} سجل تفعيل وإرجاع الأكواد إلى غير مفعّل؟`)) {
-        return;
-      }
-
-      try {
-        await api("/api/activations/delete", {
-          method: "POST",
-          headers: { "content-type": "application/json" },
-          body: JSON.stringify({ ids })
-        });
-
-        alert("تم تنفيذ طلب الحذف.");
-        await loadRecords();
-      } catch (e) {
-        alert("تعذر الحذف. تأكد من الاتصال وصلاحيات الحساب.");
-      }
-    });
-
-  document.getElementById("deleteAllActivations")
-    .addEventListener("click", async () => {
-      if (!confirm("تحذير: سيتم حذف جميع سجلات التفعيل وإرجاع الأكواد إلى غير مفعّل. هل تريد المتابعة؟")) {
-        return;
-      }
-
-      if (!confirm("تأكيد أخير: هل أنت متأكد من حذف جميع سجلات التفعيل؟")) {
-        return;
-      }
-
-      try {
-        await api("/api/activations/delete", {
-          method: "POST",
-          headers: { "content-type": "application/json" },
-          body: JSON.stringify({ all: true })
-        });
-
-        alert("تم تنفيذ طلب الحذف.");
-        await loadRecords();
-      } catch (e) {
-        alert("تعذر الحذف. تأكد من الاتصال وصلاحيات الحساب.");
-      }
-    });
+  const status=$("statusFilter").value, q=$("codeSearch").value.trim();
+  const params=new URLSearchParams({limit:"500"}); if(status)params.set("status",status); if(q)params.set("q",q);
+  const d=await api("/api/codes?"+params.toString(),{method:"GET",headers:{}}); latestRows=d.rows;
+  const canDelete=["owner","admin"].includes(currentUser?.role);
+  $("deleteControls").classList.toggle("hidden", !canDelete);
+  const headers=["اختيار","كود الضمان","الحالة","اسم العميل","الموبايل","المنتج","مسلسل الجهاز","تاريخ الشراء","تاريخ الإضافة","تاريخ التفعيل"];
+  const body=d.rows.map(r=>`<tr><td>${r.status==="activated" && canDelete ? `<input type="checkbox" class="activation-select" value="${escapeHtml(String(r.code_reference??""))}" aria-label="تحديد سجل ${escapeHtml(String(r.code_reference??""))}">` : "—"}</td><td>${escapeHtml(String(r.code_reference??""))}</td><td>${r.status==="activated"?"تم التفعيل":"لم يُفعّل"}</td><td>${escapeHtml(String(r.customer_name??""))}</td><td>${escapeHtml(String(r.phone??""))}</td><td>${escapeHtml(String(r.product_name??""))}</td><td>${escapeHtml(String(r.serial_number??""))}</td><td>${escapeHtml(dateOnly(r.purchase_date))}</td><td>${escapeHtml(dateOnly(r.imported_at))}</td><td>${escapeHtml(dateOnly(r.activated_at))}</td></tr>`).join("");
+  $("records").innerHTML = "<table><thead><tr>"+headers.map(x=>"<th>"+escapeHtml(x)+"</th>").join("")+"</tr></thead><tbody>"+body+"</tbody></table>";
 }
-
-function tableHtml(rows) {
-  return "<table><thead><tr>"+rows[0].map(x=>"<th>"+escapeHtml(x)+"</th>").join("")+"</tr></thead><tbody>"+
-    rows.slice(1).map(r=>"<tr>"+r.map(x=>"<td>"+escapeHtml(String(x??""))+"</td>").join("")+"</tr>").join("")+"</tbody></table>";
+async function deleteActivations(payload, confirmation) {
+  if (!confirm(confirmation)) return;
+  clearMessage("deleteMessage");
+  try {
+    const result=await api("/api/activations/delete",{method:"POST",body:JSON.stringify(payload)});
+    showMessage("deleteMessage",`تم حذف ${result.deleted} سجل تفعيل. أكواد الضمان ما زالت مفعّلة وغير قابلة لإعادة الاستخدام.`,"ok");
+    await refreshDashboard();
+  } catch(err) { showMessage("deleteMessage",err.message,"err"); }
 }
+$("deleteSelectedBtn").addEventListener("click",()=>{
+  const codes=[...document.querySelectorAll(".activation-select:checked")].map(el=>el.value);
+  if(!codes.length){showMessage("deleteMessage","حدد سجل تفعيل واحدًا على الأقل أولًا.","err");return;}
+  deleteActivations({codes},`تأكيد حذف ${codes.length} سجل تفعيل؟ أكواد الضمان ستظل مفعّلة ولن يمكن استخدامها مرة أخرى.`);
+});
+$("deleteAllBtn").addEventListener("click",()=>deleteActivations({all:true},"تحذير: سيتم حذف جميع سجلات التفعيل وبيانات العملاء المرتبطة بها نهائيًا. أكواد الضمان وحسابات الإدارة ستظل موجودة، والأكواد المفعّلة لن تصبح قابلة للاستخدام مرة أخرى. هل تريد المتابعة؟"));
 function escapeHtml(s) { return s.replace(/[&<>"']/g, c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c])); }
 $("refreshBtn").addEventListener("click",()=>refreshDashboard());
 $("statusFilter").addEventListener("change",()=>loadRecords().catch(e=>showMessage("importMessage",e.message,"err")));
@@ -370,15 +307,55 @@ $("userForm").addEventListener("submit", async e => {
 });
 async function loadUsers() {
   const d=await api("/api/users",{method:"GET",headers:{}});
-  const rows=[["اسم المستخدم","الاسم الظاهر","الصلاحية","الحالة","تاريخ الإنشاء"],...d.rows.map(u=>[u.username,u.display_name,roleLabel(u.role),u.active?"نشط":"موقوف",u.created_at])];
+  const rows=[["اسم المستخدم","الاسم الظاهر","الصلاحية","الحالة","تاريخ الإنشاء"],...d.rows.map(u=>[u.username,u.display_name,roleLabel(u.role),u.active?"نشط":"موقوف",dateOnly(u.created_at)])];
   $("usersList").innerHTML=tableHtml(rows);
 }
 $("exportBtn").addEventListener("click",()=>{
-  const rows=[["code_reference","status","imported_at","activated_at"],...latestRows.map(r=>[r.code_reference,r.status,r.imported_at,r.activated_at||""])];
+  const rows=[["code_reference","status","customer_name","phone","product_name","serial_number","purchase_date","imported_at","activated_at"],...latestRows.map(r=>[r.code_reference,r.status,r.customer_name,r.phone,r.product_name,r.serial_number,dateOnly(r.purchase_date),dateOnly(r.imported_at),r.activated_at ? dateOnly(r.activated_at) : ""])];
   const csv=rows.map(row=>row.map(v=>'"'+String(v??"").replaceAll('"','""')+'"').join(",")).join("\r\n");
   const blob=new Blob(["\ufeff"+csv],{type:"text/csv;charset=utf-8"}), url=URL.createObjectURL(blob);
   const a=document.createElement("a");a.href=url;a.download="warranty-records.csv";a.click();URL.revokeObjectURL(url);
 });
+async function loadCustomerProducts() {
+  const d=await api("/api/products",{method:"GET",headers:{}});
+  const select=$("productSelect"), previous=select.value;
+  select.innerHTML='<option value="">اختر المنتج</option>'+d.rows.map(p=>'<option value="'+escapeHtml(p.id)+'">'+escapeHtml(p.name)+'</option>').join("");
+  if(d.rows.some(p=>p.id===previous)) select.value=previous;
+}
+async function loadProducts() {
+  if(!currentUser || !["owner","admin"].includes(currentUser.role)) return;
+  const d=await api("/api/products/manage",{method:"GET",headers:{}});
+  $("productsList").innerHTML = "<table><thead><tr><th>اسم المنتج</th><th>الحالة</th><th>الإجراءات</th></tr></thead><tbody>" + d.rows.map(p =>
+    "<tr><td>"+escapeHtml(p.name)+"</td><td>"+(p.active?"ظاهر للعملاء":"موقوف")+"</td><td>"+
+    '<button type="button" class="secondary" data-product-action="rename" data-id="'+escapeHtml(p.id)+'" data-name="'+escapeHtml(p.name)+'">تعديل الاسم</button> '+
+    '<button type="button" class="secondary" data-product-action="active" data-active="'+(p.active?"0":"1")+'" data-id="'+escapeHtml(p.id)+'">'+(p.active?"إيقاف الظهور":"إعادة التفعيل")+'</button> '+
+    '<button type="button" class="danger" data-product-action="delete" data-id="'+escapeHtml(p.id)+'">أرشفة</button></td></tr>'
+  ).join("")+"</tbody></table>";
+  $("productsList").querySelectorAll("button[data-product-action]").forEach(btn=>btn.addEventListener("click",async()=>{
+    const action=btn.dataset.productAction, id=btn.dataset.id;
+    try {
+      if(action==="rename") {
+        const name=prompt("اكتب الاسم الجديد للمنتج:",btn.dataset.name);
+        if(name===null)return;
+        await api("/api/products/manage",{method:"POST",body:JSON.stringify({id,action:"rename",name})});
+      } else if(action==="active") {
+        await api("/api/products/manage",{method:"POST",body:JSON.stringify({id,action:"active",active:btn.dataset.active==="1"})});
+      } else {
+        if(!confirm("سيتم إيقاف المنتج عن الظهور للعملاء مع الاحتفاظ بسجلات الضمان القديمة. هل تريد المتابعة؟"))return;
+        await api("/api/products/manage",{method:"POST",body:JSON.stringify({id,action:"delete"})});
+      }
+      showMessage("productMessage","تم تحديث المنتجات.","ok"); await loadProducts(); await loadCustomerProducts();
+    } catch(err) { showMessage("productMessage",err.message,"err"); }
+  }));
+}
+$("productForm").addEventListener("submit",async e=>{
+  e.preventDefault();
+  try {
+    await api("/api/products",{method:"POST",body:JSON.stringify({name:$("newProductName").value})});
+    $("productForm").reset(); showMessage("productMessage","تمت إضافة المنتج.","ok"); await loadProducts(); await loadCustomerProducts();
+  } catch(err) { showMessage("productMessage",err.message,"err"); }
+});
+
 $("passwordForm").addEventListener("submit", async e=>{
   e.preventDefault();
   try {
