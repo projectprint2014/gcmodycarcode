@@ -20,7 +20,7 @@ async function sha256(text) {
 }
 async function passwordHash(password, salt = crypto.getRandomValues(new Uint8Array(16))) {
   const key = await crypto.subtle.importKey("raw", encoder.encode(password), "PBKDF2", false, ["deriveBits"]);
-  const bits = await crypto.subtle.deriveBits({ name: "PBKDF2", salt, iterations: 310000, hash: "SHA-256" }, key, 256);
+  const bits = await crypto.subtle.deriveBits({ name: "PBKDF2", salt, iterations: 100000, hash: "SHA-256" }, key, 256);
   return `${b64url(salt)}.${b64url(bits)}`;
 }
 function fromB64url(s) {
@@ -90,12 +90,6 @@ function sameOrigin(request) {
 async function api(request, env) {
   const url = new URL(request.url);
   const path = url.pathname;
-  if (path === "/api/debug-config" && request.method === "GET") {
-  return json({
-    setupTokenConfigured: Boolean(env.SETUP_TOKEN),
-    databaseConfigured: Boolean(env.DB)
-  });
-}
   if (!sameOrigin(request) && request.method !== "GET") return fail("طلب غير مسموح.", 403);
 
   if (path === "/api/status" && request.method === "GET") {
@@ -149,18 +143,78 @@ async function api(request, env) {
     return user ? json({ user: { username: user.username, displayName: user.display_name, role: user.role } }) : fail("غير مسجل الدخول.", 401);
   }
 
-  if (path === "/api/activate" && request.method === "POST") {
+  if (path === "/api/products" && request.method === "GET") {
+    const rows = await env.DB.prepare("SELECT id, name FROM products WHERE active=1 ORDER BY sort_order, name").all();
+    return json({ rows: rows.results || [] });
+  }
+  if (path === "/api/products/manage" && request.method === "GET") {
+    const auth = await requireUser(request, env, ["owner","admin"]);
+    if (auth.error) return auth.error;
+    const rows = await env.DB.prepare("SELECT id, name, active FROM products ORDER BY sort_order, name").all();
+    return json({ rows: rows.results || [] });
+  }
+  if (path === "/api/products" && request.method === "POST") {
+    const auth = await requireUser(request, env, ["owner","admin"]);
+    if (auth.error) return auth.error;
     let b; try { b = await bodyJson(request, 10000); } catch { return fail("بيانات غير صحيحة."); }
+    const name = String(b.name || "").trim();
+    if (name.length < 2 || name.length > 100) return fail("اسم المنتج يجب أن يكون بين حرفين و100 حرف.");
+    try { await env.DB.prepare("INSERT INTO products (id, name, active, sort_order) VALUES (?, ?, 1, COALESCE((SELECT MAX(sort_order)+1 FROM products), 0))").bind(id(), name).run(); }
+    catch { return fail("اسم المنتج موجود بالفعل أو تعذر إضافته.", 409); }
+    await audit(env, auth.user.id, "add_product", name);
+    return json({ ok: true });
+  }
+  if (path === "/api/products/manage" && request.method === "POST") {
+    const auth = await requireUser(request, env, ["owner","admin"]);
+    if (auth.error) return auth.error;
+    let b; try { b = await bodyJson(request, 10000); } catch { return fail("بيانات غير صحيحة."); }
+    const productId = String(b.id || "");
+    const action = String(b.action || "");
+    if (!productId) return fail("المنتج غير محدد.");
+    if (action === "rename") {
+      const name = String(b.name || "").trim();
+      if (name.length < 2 || name.length > 100) return fail("اسم المنتج يجب أن يكون بين حرفين و100 حرف.");
+      try { await env.DB.prepare("UPDATE products SET name=? WHERE id=?").bind(name, productId).run(); }
+      catch { return fail("اسم المنتج موجود بالفعل أو تعذر تعديله.", 409); }
+      await audit(env, auth.user.id, "rename_product", `${productId}:${name}`);
+      return json({ ok: true });
+    }
+    if (action === "active" || action === "delete") {
+      const active = action === "delete" ? 0 : (b.active ? 1 : 0);
+      await env.DB.prepare("UPDATE products SET active=? WHERE id=?").bind(active, productId).run();
+      await audit(env, auth.user.id, active ? "enable_product" : "disable_product", productId);
+      return json({ ok: true });
+    }
+    return fail("إجراء المنتج غير معروف.");
+  }
+
+  if (path === "/api/activate" && request.method === "POST") {
+    let b; try { b = await bodyJson(request, 20000); } catch { return fail("بيانات غير صحيحة."); }
     const code = normalizeCode(b.code);
+    const customerName = String(b.customerName || "").trim();
+    const phone = String(b.phone || "").trim();
+    const productId = String(b.productId || "").trim();
+    const serialNumber = String(b.serialNumber || "").trim();
+    const purchaseDate = String(b.purchaseDate || "").trim();
     if (code.length < 8 || code.length > 128) return fail("كود الضمان غير صحيح أو غير موجود.");
+    if (customerName.length < 2 || customerName.length > 120) return fail("اكتب اسم العميل بالكامل.");
+    if (!/^01[0-9]{9}$/.test(phone)) return fail("رقم الموبايل يجب أن يتكون من 11 رقمًا ويبدأ بـ 01.");
+    if (!productId) return fail("اختر المنتج.");
+    if (serialNumber.length > 120) return fail("الرقم المسلسل أطول من المسموح.");
+    if (purchaseDate && !/^\d{4}-\d{2}-\d{2}$/.test(purchaseDate)) return fail("تاريخ الشراء غير صحيح.");
+    const product = await env.DB.prepare("SELECT id FROM products WHERE id=? AND active=1").bind(productId).first();
+    if (!product) return fail("المنتج المختار غير متاح. حدّث الصفحة واختر المنتج مرة أخرى.");
     const codeHash = await sha256(code);
-    // Conditional update is atomic: only one concurrent request can transition unused -> activated.
-    const result = await env.DB.prepare(
-      "UPDATE warranty_codes SET status='activated' WHERE code_hash=? AND status='unused'"
-    ).bind(codeHash).run();
+    const result = await env.DB.prepare("UPDATE warranty_codes SET status='activated' WHERE code_hash=? AND status='unused'").bind(codeHash).run();
     if (result.meta.changes === 1) {
-      await env.DB.prepare("INSERT INTO activations (id, code_hash) VALUES (?, ?)").bind(id(), codeHash).run();
-      return json({ ok: true, message: "تم تفعيل الضمان بنجاح." });
+      try {
+        await env.DB.prepare(`INSERT INTO activations (id, code_hash, customer_name, phone, product_id, serial_number, purchase_date) VALUES (?, ?, ?, ?, ?, ?, ?)`)
+          .bind(id(), codeHash, customerName, phone, productId, serialNumber || null, purchaseDate || null).run();
+      } catch (e) {
+        await env.DB.prepare("UPDATE warranty_codes SET status='unused' WHERE code_hash=? AND status='activated'").bind(codeHash).run();
+        throw e;
+      }
+      return json({ ok: true, message: "تم تسجيل بياناتك وتفعيل الضمان بنجاح." });
     }
     const exists = await env.DB.prepare("SELECT status FROM warranty_codes WHERE code_hash=?").bind(codeHash).first();
     if (exists?.status === "activated") return fail("هذا الكود تم تفعيله من قبل.", 409);
@@ -185,8 +239,10 @@ async function api(request, env) {
     if (auth.error) return auth.error;
     const limit = Math.min(500, Math.max(1, Number(url.searchParams.get("limit") || 200)));
     const rows = await env.DB.prepare(
-      `SELECT a.activated_at, substr(a.code_hash,1,12) AS code_reference
-       FROM activations a ORDER BY a.activated_at DESC LIMIT ?`
+      `SELECT a.activated_at, c.original_code AS code_reference
+       FROM activations a
+       JOIN warranty_codes c ON c.code_hash = a.code_hash
+       ORDER BY a.activated_at DESC LIMIT ?`
     ).bind(limit).all();
     return json({ rows: rows.results || [] });
   }
@@ -194,62 +250,28 @@ async function api(request, env) {
   if (path === "/api/activations/delete" && request.method === "POST") {
     const auth = await requireUser(request, env, ["owner", "admin"]);
     if (auth.error) return auth.error;
-
     let b;
-    try {
-      b = await bodyJson(request, 50000);
-    } catch {
-      return fail("بيانات الحذف غير صحيحة.");
-    }
-
+    try { b = await bodyJson(request, 1_000_000); } catch { return fail("تعذر قراءة طلب الحذف."); }
     if (b.all === true) {
-      const count = await env.DB.prepare(
-        "SELECT COUNT(*) AS n FROM activations"
-      ).first();
-
-      await env.DB.batch([
-        env.DB.prepare(
-          "UPDATE warranty_codes SET status='unused' WHERE status='activated'"
-        ),
-        env.DB.prepare("DELETE FROM activations")
-      ]);
-
-      await audit(env, auth.user.id, "delete_all_activations", `count=${count.n}`);
-      return json({ ok: true, deleted: count.n });
+      const result = await env.DB.prepare("DELETE FROM activations").run();
+      // Do not change warranty_codes.status: previously activated codes remain unusable.
+      return json({ ok: true, deleted: result.meta?.changes || 0 });
     }
-
-    const ids = [...new Set(
-      Array.isArray(b.ids)
-        ? b.ids.filter(x => typeof x === "string" && x.length <= 100)
-        : []
-    )];
-
-    if (!ids.length || ids.length > 500) {
-      return fail("حدد سجلًا واحدًا على الأقل، وبحد أقصى 500 سجل.");
+    if (!Array.isArray(b.codes) || b.codes.length < 1 || b.codes.length > 500) {
+      return fail("حدد سجلًا واحدًا على الأقل، وبحد أقصى 500 سجل في المرة الواحدة.");
     }
-
-    const marks = ids.map(() => "?").join(",");
-    const count = await env.DB.prepare(
-      `SELECT COUNT(*) AS n FROM activations WHERE id IN (${marks})`
-    ).bind(...ids).first();
-
-    await env.DB.batch([
-      env.DB.prepare(
-        `UPDATE warranty_codes SET status='unused'
-         WHERE code_hash IN (
-           SELECT code_hash FROM activations WHERE id IN (${marks})
-         )`
-      ).bind(...ids),
-      env.DB.prepare(
-        `DELETE FROM activations WHERE id IN (${marks})`
-      ).bind(...ids)
-    ]);
-
-    await audit(env, auth.user.id, "delete_selected_activations", `count=${count.n}`);
-    return json({ ok: true, deleted: count.n });
+    const codes = [...new Set(b.codes.map(normalizeCode).filter(Boolean))];
+    let deleted = 0;
+    for (const code of codes) {
+      const hash = await sha256(code);
+      const result = await env.DB.prepare("DELETE FROM activations WHERE code_hash = ?").bind(hash).run();
+      deleted += result.meta?.changes || 0;
+    }
+    // Intentionally leave warranty_codes.status='activated' so deleted activations cannot be reused.
+    return json({ ok: true, deleted });
   }
 
-  `SELECT a.id AS activation_id, substr(c.code_hash,1,12) AS code_reference, c.status, c.imported_at, a.activated_at
+  if (path === "/api/codes" && request.method === "GET") {
     const auth = await requireUser(request, env);
     if (auth.error) return auth.error;
     const status = url.searchParams.get("status");
@@ -257,11 +279,13 @@ async function api(request, env) {
     const limit = Math.min(500, Math.max(1, Number(url.searchParams.get("limit") || 200)));
     let where = "1=1", binds = [];
     if (status === "unused" || status === "activated") { where += " AND c.status=?"; binds.push(status); }
-    if (q) { where += " AND substr(c.code_hash,1,12)=?"; binds.push(q); }
+    if (q) { where += " AND c.original_code LIKE ?"; binds.push("%" + q + "%"); }
     binds.push(limit);
     const rows = await env.DB.prepare(
-      `SELECT a.id AS activation_id, substr(c.code_hash,1,12) AS code_reference, c.status, c.imported_at, a.activated_at
+      `SELECT c.original_code AS code_reference, c.status, c.imported_at, a.activated_at,
+              a.customer_name, a.phone, p.name AS product_name, a.serial_number, a.purchase_date
        FROM warranty_codes c LEFT JOIN activations a ON a.code_hash=c.code_hash
+       LEFT JOIN products p ON p.id=a.product_id
        WHERE ${where} ORDER BY COALESCE(a.activated_at,c.imported_at) DESC LIMIT ?`
     ).bind(...binds).all();
     return json({ rows: rows.results || [] });
@@ -283,13 +307,14 @@ async function api(request, env) {
     let inserted = 0;
     // Batch in chunks to stay within D1 batch limits.
     for (let i = 0; i < codes.length; i += 100) {
-      const statements = codes.slice(i, i + 100).map(async code => ({
-        hash: await sha256(code)
-      }));
+const statements = codes.slice(i, i + 100).map(async code => ({
+  hash: await sha256(code),
+  code
+}));
       const hashed = await Promise.all(statements);
       const stmts = hashed.map(x => env.DB.prepare(
-        "INSERT OR IGNORE INTO warranty_codes (code_hash, imported_by) VALUES (?, ?)"
-      ).bind(x.hash, auth.user.id));
+        "INSERT INTO warranty_codes (code_hash, original_code, imported_by) VALUES (?, ?, ?) ON CONFLICT(code_hash) DO UPDATE SET original_code=excluded.original_code"
+      ).bind(x.hash, x.code, auth.user.id));
       const result = await env.DB.batch(stmts);
       inserted += result.reduce((sum, r) => sum + (r.meta?.changes || 0), 0);
     }
