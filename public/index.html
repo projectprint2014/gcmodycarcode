@@ -21,7 +21,6 @@
     .row{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}.hidden{display:none!important}
     .message{padding:12px;border-radius:10px;margin:12px 0;white-space:pre-wrap}.ok{background:#102417;color:#9df0b3;border:1px solid #246638}.err{background:#301313;color:#ffb3b3;border:1px solid #7b2929}.info{background:#171f27;color:#b9e4ff;border:1px solid #29485c}
     .stats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}.stat{background:#191919;border:1px solid #383838;border-radius:12px;padding:16px;color:#ddd}.stat b{font-size:25px;display:block;margin-top:6px;color:#ff9b24}
-    .activation-select,.select-all-records{width:auto;min-width:auto;accent-color:#ff8a00;cursor:pointer}
     table{border-collapse:collapse;width:100%;font-size:14px;color:#eee}th,td{text-align:right;padding:11px 9px;border-bottom:1px solid #333;overflow-wrap:anywhere}th{background:#202020;color:#ffad42}
     .tablewrap{overflow:auto}.sectionhead{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}
     .tag{font-size:12px;border-radius:999px;background:#292929;color:#ffad42;padding:4px 8px}.small{font-size:12px}.foot{color:#888;text-align:center;font-size:12px;margin:24px}
@@ -128,9 +127,9 @@
       </div>
       <div class="sectionhead"><span class="muted">يعرض النظام كود الضمان الأصلي كما تم استيراده من Excel.</span><button id="exportBtn" class="secondary">تصدير CSV</button></div>
       <div class="row" id="deleteControls" style="margin:12px 0">
-        <button type="button" id="deleteSelectedBtn" class="secondary">حذف الأكواد المحددة نهائيًا</button>
-        <button type="button" id="deleteAllBtn" class="secondary">حذف جميع أكواد الضمان نهائيًا</button>
-        <span class="muted">الحذف نهائي ويزيل كود الضمان نفسه وسجل التفعيل وبيانات العميل المرتبطة به، سواء كان الكود مفعّلًا أو غير مفعّل.</span>
+        <button type="button" id="deleteSelectedBtn" class="secondary">حذف السجلات المحددة</button>
+        <button type="button" id="deleteAllBtn" class="secondary">حذف كل سجلات التفعيل</button>
+        <span class="muted">الحذف يمسح سجل التفعيل فقط؛ كود الضمان يظل مفعّلًا ولا يمكن استخدامه مرة أخرى.</span>
       </div>
       <div id="deleteMessage" aria-live="polite"></div>
       <div id="records" class="tablewrap"></div>
@@ -249,86 +248,36 @@ async function refreshDashboard() {
   } catch(e) { showMessage("importMessage",e.message,"err"); }
 }
 async function loadRecords() {
-  const status = $("statusFilter").value;
-  const q = $("codeSearch").value.trim();
-  const params = new URLSearchParams({ limit: "500" });
-  if (status) params.set("status", status);
-  if (q) params.set("q", q);
-
-  const d = await api("/api/codes?" + params.toString(), { method: "GET", headers: {} });
-  latestRows = d.rows;
-  const canDelete = ["owner", "admin"].includes(currentUser?.role);
+  const status=$("statusFilter").value, q=$("codeSearch").value.trim();
+  const params=new URLSearchParams({limit:"500"}); if(status)params.set("status",status); if(q)params.set("q",q);
+  const d=await api("/api/codes?"+params.toString(),{method:"GET",headers:{}}); latestRows=d.rows;
+  const canDelete=["owner","admin"].includes(currentUser?.role);
   $("deleteControls").classList.toggle("hidden", !canDelete);
-
-  const headers = ["كود الضمان", "الحالة", "اسم العميل", "الموبايل", "المنتج", "مسلسل الجهاز", "تاريخ الشراء", "تاريخ الإضافة", "تاريخ التفعيل"];
-  const selectionHeader = canDelete
-    ? `<th><input type="checkbox" id="selectAllRecords" class="select-all-records" aria-label="تحديد كل السجلات"> تحديد</th>`
-    : `<th>تحديد</th>`;
-  const body = d.rows.map(r => {
-    const code = String(r.code_reference ?? "");
-    const selectCell = canDelete
-      ? `<input type="checkbox" class="activation-select" value="${escapeHtml(code)}" aria-label="تحديد سجل ${escapeHtml(code)}">`
-      : "—";
-    return `<tr><td>${selectCell}</td><td>${escapeHtml(code)}</td><td>${r.status === "activated" ? "تم التفعيل" : "لم يُفعّل"}</td><td>${escapeHtml(String(r.customer_name ?? ""))}</td><td>${escapeHtml(String(r.phone ?? ""))}</td><td>${escapeHtml(String(r.product_name ?? ""))}</td><td>${escapeHtml(String(r.serial_number ?? ""))}</td><td>${escapeHtml(dateOnly(r.purchase_date))}</td><td>${escapeHtml(dateOnly(r.imported_at))}</td><td>${escapeHtml(dateOnly(r.activated_at))}</td></tr>`;
-  }).join("");
-
-  $("records").innerHTML = "<table><thead><tr>" + selectionHeader + headers.map(x => "<th>" + escapeHtml(x) + "</th>").join("") + "</tr></thead><tbody>" + body + "</tbody></table>";
-
-  const selectAll = $("selectAllRecords");
-  if (selectAll) {
-    selectAll.addEventListener("change", () => {
-      document.querySelectorAll("#records .activation-select").forEach(cb => {
-        cb.checked = selectAll.checked;
-      });
-    });
-    document.querySelectorAll("#records .activation-select").forEach(cb => {
-      cb.addEventListener("change", () => {
-        const boxes = [...document.querySelectorAll("#records .activation-select")];
-        selectAll.checked = boxes.length > 0 && boxes.every(box => box.checked);
-        selectAll.indeterminate = boxes.some(box => box.checked) && !selectAll.checked;
-      });
-    });
-  }
+  const headers=["اختيار","كود الضمان","الحالة","اسم العميل","الموبايل","المنتج","مسلسل الجهاز","تاريخ الشراء","تاريخ الإضافة","تاريخ التفعيل"];
+  const body=d.rows.map(r=>`<tr><td>${r.status==="activated" && canDelete ? `<input type="checkbox" class="activation-select" value="${escapeHtml(String(r.code_reference??""))}" aria-label="تحديد سجل ${escapeHtml(String(r.code_reference??""))}">` : "—"}</td><td>${escapeHtml(String(r.code_reference??""))}</td><td>${r.status==="activated"?'<span style="color:#15803d;font-weight:700">تم التفعيل</span>':"لم يُفعّل"}</td><td>${escapeHtml(String(r.customer_name??""))}</td><td>${escapeHtml(String(r.phone??""))}</td><td>${escapeHtml(String(r.product_name??""))}</td><td>${escapeHtml(String(r.serial_number??""))}</td><td>${escapeHtml(dateOnly(r.purchase_date))}</td><td>${escapeHtml(dateOnly(r.imported_at))}</td><td>${escapeHtml(dateOnly(r.activated_at))}</td></tr>`).join("");
+  $("records").innerHTML = "<table><thead><tr>"+headers.map(x=>"<th>"+escapeHtml(x)+"</th>").join("")+"</tr></thead><tbody>"+body+"</tbody></table>";
 }
 async function deleteActivations(payload, confirmation) {
   if (!confirm(confirmation)) return;
   clearMessage("deleteMessage");
   try {
-    const result = await api("/api/activations/delete", {
-      method: "POST",
-      body: JSON.stringify(payload)
-    });
-    $("statusFilter").value = "";
-    $("codeSearch").value = "";
-    showMessage(
-      "deleteMessage",
-      `تم حذف ${result.deleted} كود ضمان نهائيًا، وحذف ${result.deletedActivations} سجل تفعيل مرتبط به.`,
-      "ok"
-    );
+    const result=await api("/api/activations/delete",{method:"POST",body:JSON.stringify(payload)});
+    showMessage("deleteMessage",`تم حذف ${result.deleted} سجل تفعيل. أكواد الضمان ما زالت مفعّلة وغير قابلة لإعادة الاستخدام.`,"ok");
     await refreshDashboard();
-  } catch (err) {
-    showMessage("deleteMessage", err.message, "err");
-  }
+  } catch(err) { showMessage("deleteMessage",err.message,"err"); }
 }
-
-$("deleteSelectedBtn").addEventListener("click", () => {
-  const codes = [...document.querySelectorAll(".activation-select:checked")].map(el => el.value);
-  if (!codes.length) {
-    showMessage("deleteMessage", "حدد كودًا واحدًا على الأقل للحذف.", "err");
-    return;
-  }
-  deleteActivations(
-    { codes },
-    `تحذير: سيتم حذف ${codes.length} كود ضمان محدد نهائيًا من المخزون، مع سجلات التفعيل وبيانات العملاء المرتبطة بها. لا يمكن التراجع عن الحذف. هل تريد المتابعة؟`
-  );
+$("deleteSelectedBtn").addEventListener("click",()=>{
+  const codes=[...document.querySelectorAll(".activation-select:checked")].map(el=>el.value);
+  if(!codes.length){showMessage("deleteMessage","حدد سجل تفعيل واحدًا على الأقل أولًا.","err");return;}
+  deleteActivations({codes},`تأكيد حذف ${codes.length} سجل تفعيل؟ أكواد الضمان ستظل مفعّلة ولن يمكن استخدامها مرة أخرى.`);
 });
-
-$("deleteAllBtn").addEventListener("click", () => {
-  deleteActivations(
-    { all: true },
-    "تحذير نهائي: سيتم حذف جميع أكواد الضمان من المخزون وجميع سجلات التفعيل وبيانات العملاء المرتبطة بها. لا يمكن التراجع عن الحذف. هل تريد المتابعة؟"
-  );
-});
+$("deleteAllBtn").addEventListener("click",()=>deleteActivations({all:true},"تحذير: سيتم حذف جميع سجلات التفعيل وبيانات العملاء المرتبطة بها نهائيًا. أكواد الضمان وحسابات الإدارة ستظل موجودة، والأكواد المفعّلة لن تصبح قابلة للاستخدام مرة أخرى. هل تريد المتابعة؟"));
+function tableHtml(rows) {
+  if (!rows || !rows.length) return "";
+  return "<table><thead><tr>" + rows[0].map(x=>"<th>"+escapeHtml(String(x??""))+"</th>").join("") +
+    "</tr></thead><tbody>" + rows.slice(1).map(r=>"<tr>"+r.map(x=>"<td>"+escapeHtml(String(x??""))+"</td>").join("")+"</tr>").join("") +
+    "</tbody></table>";
+}
 function escapeHtml(s) { return s.replace(/[&<>"']/g, c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c])); }
 $("refreshBtn").addEventListener("click",()=>refreshDashboard());
 $("statusFilter").addEventListener("change",()=>loadRecords().catch(e=>showMessage("importMessage",e.message,"err")));
