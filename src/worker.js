@@ -191,6 +191,64 @@ async function api(request, env) {
     return json({ rows: rows.results || [] });
   }
 
+  if (path === "/api/activations/delete" && request.method === "POST") {
+    const auth = await requireUser(request, env, ["owner", "admin"]);
+    if (auth.error) return auth.error;
+
+    let b;
+    try {
+      b = await bodyJson(request, 50000);
+    } catch {
+      return fail("بيانات الحذف غير صحيحة.");
+    }
+
+    if (b.all === true) {
+      const count = await env.DB.prepare(
+        "SELECT COUNT(*) AS n FROM activations"
+      ).first();
+
+      await env.DB.batch([
+        env.DB.prepare(
+          "UPDATE warranty_codes SET status='unused' WHERE status='activated'"
+        ),
+        env.DB.prepare("DELETE FROM activations")
+      ]);
+
+      await audit(env, auth.user.id, "delete_all_activations", `count=${count.n}`);
+      return json({ ok: true, deleted: count.n });
+    }
+
+    const ids = [...new Set(
+      Array.isArray(b.ids)
+        ? b.ids.filter(x => typeof x === "string" && x.length <= 100)
+        : []
+    )];
+
+    if (!ids.length || ids.length > 500) {
+      return fail("حدد سجلًا واحدًا على الأقل، وبحد أقصى 500 سجل.");
+    }
+
+    const marks = ids.map(() => "?").join(",");
+    const count = await env.DB.prepare(
+      `SELECT COUNT(*) AS n FROM activations WHERE id IN (${marks})`
+    ).bind(...ids).first();
+
+    await env.DB.batch([
+      env.DB.prepare(
+        `UPDATE warranty_codes SET status='unused'
+         WHERE code_hash IN (
+           SELECT code_hash FROM activations WHERE id IN (${marks})
+         )`
+      ).bind(...ids),
+      env.DB.prepare(
+        `DELETE FROM activations WHERE id IN (${marks})`
+      ).bind(...ids)
+    ]);
+
+    await audit(env, auth.user.id, "delete_selected_activations", `count=${count.n}`);
+    return json({ ok: true, deleted: count.n });
+  }
+
   if (path === "/api/codes" && request.method === "GET") {
     const auth = await requireUser(request, env);
     if (auth.error) return auth.error;
@@ -202,7 +260,7 @@ async function api(request, env) {
     if (q) { where += " AND substr(c.code_hash,1,12)=?"; binds.push(q); }
     binds.push(limit);
     const rows = await env.DB.prepare(
-      `SELECT substr(c.code_hash,1,12) AS code_reference, c.status, c.imported_at, a.activated_at
+      `SELECT a.id AS activation_id, substr(c.code_hash,1,12) AS code_reference, c.status, c.imported_at, a.activated_at
        FROM warranty_codes c LEFT JOIN activations a ON a.code_hash=c.code_hash
        WHERE ${where} ORDER BY COALESCE(a.activated_at,c.imported_at) DESC LIMIT ?`
     ).bind(...binds).all();
