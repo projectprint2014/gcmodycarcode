@@ -249,7 +249,7 @@ async function api(request, env) {
     return json({ ok: true, deleted: count.n });
   }
 
-  if (path === "/api/codes" && request.method === "GET") {
+  `SELECT a.id AS activation_id, substr(c.code_hash,1,12) AS code_reference, c.status, c.imported_at, a.activated_at
     const auth = await requireUser(request, env);
     if (auth.error) return auth.error;
     const status = url.searchParams.get("status");
