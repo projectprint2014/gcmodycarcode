@@ -212,13 +212,125 @@ async function refreshDashboard() {
     if(currentUser.role==="owner") await loadUsers();
   } catch(e) { showMessage("importMessage",e.message,"err"); }
 }
+
 async function loadRecords() {
-  const status=$("statusFilter").value, q=$("codeSearch").value.trim();
-  const params=new URLSearchParams({limit:"500"}); if(status)params.set("status",status); if(q)params.set("q",q);
-  const d=await api("/api/codes?"+params.toString(),{method:"GET",headers:{}}); latestRows=d.rows;
-  const rows=[["مرجع الكود","الحالة","تاريخ الإضافة","تاريخ التفعيل"],...d.rows.map(r=>[r.code_reference,r.status==="activated"?"تم التفعيل":"لم يُفعّل",r.imported_at,r.activated_at||"—"])];
-  $("records").innerHTML = tableHtml(rows);
+  const status = $("statusFilter").value;
+  const q = $("codeSearch").value.trim();
+  const params = new URLSearchParams({ limit: "500" });
+
+  if (status) params.set("status", status);
+  if (q) params.set("q", q);
+
+  const d = await api("/api/codes?" + params.toString(), {
+    method: "GET",
+    headers: {}
+  });
+
+  latestRows = d.rows;
+
+  const records = $("records");
+  const selectedRows = d.rows.filter(
+    r => r.status === "activated" && r.activation_id
+  );
+
+  records.innerHTML = `
+    <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:12px">
+      <label>
+        <input type="checkbox" id="selectAllActivations">
+        تحديد كل سجلات التفعيل الظاهرة
+      </label>
+      <button type="button" id="deleteSelectedActivations">حذف المحدد</button>
+      <button type="button" id="deleteAllActivations">حذف جميع سجلات التفعيل</button>
+    </div>
+    <table>
+      <thead>
+        <tr>
+          <th>تحديد</th>
+          <th>مرجع الكود</th>
+          <th>الحالة</th>
+          <th>تاريخ الإضافة</th>
+          <th>تاريخ التفعيل</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${d.rows.map(r => `
+          <tr>
+            <td>
+              ${r.status === "activated" && r.activation_id
+                ? `<input type="checkbox" class="activation-select" value="${escapeHtml(String(r.activation_id))}" aria-label="تحديد سجل التفعيل">`
+                : "—"}
+            </td>
+            <td>${escapeHtml(String(r.code_reference ?? ""))}</td>
+            <td>${r.status === "activated" ? "تم التفعيل" : "لم يُفعّل"}</td>
+            <td>${escapeHtml(String(r.imported_at ?? ""))}</td>
+            <td>${escapeHtml(String(r.activated_at ?? "—"))}</td>
+          </tr>
+        `).join("")}
+      </tbody>
+    </table>
+  `;
+
+  const selectAll = document.getElementById("selectAllActivations");
+
+  selectAll.addEventListener("change", () => {
+    records.querySelectorAll(".activation-select").forEach(cb => {
+      cb.checked = selectAll.checked;
+    });
+  });
+
+  document.getElementById("deleteSelectedActivations")
+    .addEventListener("click", async () => {
+      const ids = [...records.querySelectorAll(".activation-select:checked")]
+        .map(cb => cb.value);
+
+      if (!ids.length) {
+        alert("حدد سجل تفعيل واحدًا على الأقل.");
+        return;
+      }
+
+      if (!confirm(`هل تريد حذف ${ids.length} سجل تفعيل وإرجاع الأكواد إلى غير مفعّل؟`)) {
+        return;
+      }
+
+      try {
+        await api("/api/activations/delete", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ ids })
+        });
+
+        alert("تم تنفيذ طلب الحذف.");
+        await loadRecords();
+      } catch (e) {
+        alert("تعذر الحذف. تأكد من الاتصال وصلاحيات الحساب.");
+      }
+    });
+
+  document.getElementById("deleteAllActivations")
+    .addEventListener("click", async () => {
+      if (!confirm("تحذير: سيتم حذف جميع سجلات التفعيل وإرجاع الأكواد إلى غير مفعّل. هل تريد المتابعة؟")) {
+        return;
+      }
+
+      if (!confirm("تأكيد أخير: هل أنت متأكد من حذف جميع سجلات التفعيل؟")) {
+        return;
+      }
+
+      try {
+        await api("/api/activations/delete", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ all: true })
+        });
+
+        alert("تم تنفيذ طلب الحذف.");
+        await loadRecords();
+      } catch (e) {
+        alert("تعذر الحذف. تأكد من الاتصال وصلاحيات الحساب.");
+      }
+    });
 }
+
 function tableHtml(rows) {
   return "<table><thead><tr>"+rows[0].map(x=>"<th>"+escapeHtml(x)+"</th>").join("")+"</tr></thead><tbody>"+
     rows.slice(1).map(r=>"<tr>"+r.map(x=>"<td>"+escapeHtml(String(x??""))+"</td>").join("")+"</tr>").join("")+"</tbody></table>";
